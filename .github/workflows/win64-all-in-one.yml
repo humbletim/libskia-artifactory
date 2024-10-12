@@ -22,7 +22,7 @@ jobs:
       BUILD_ARTIFACTSTAGINGDIRECTORY: ${{ github.workspace }}/artifacts
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         repository: rust-skia/rust-skia 
         ref: ${{ env.SKIA_TAG }} 
@@ -75,7 +75,7 @@ jobs:
         path: ${{ env.BUILD_ARTIFACTSTAGINGDIRECTORY }}/skia-binaries
 
     - name: Setup tmate session
-      if: failure()
+      if: failure() || true
       uses: mxschmitt/action-tmate@v3
       with:
         limit-access-to-actor: true # Only you can access the session
