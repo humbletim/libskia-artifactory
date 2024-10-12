@@ -1,0 +1,71 @@
+name: windows-skia-static
+
+on:
+  workflow_dispatch:
+      inputs:
+        skia-version:
+          type: string
+          required: false
+
+run-name: ${{ github.ref_name }} | ${{ inputs.skia-version }}
+
+jobs:
+  build-windows-static:
+    runs-on: windows-2022
+    env:
+      SKIA_DEBUG: 0
+      BUILD_ARTIFACTSTAGINGDIRECTORY: ${{ runner.temp }}
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        repository: rust-skia/skia-safe 
+        submodules: true 
+
+    - name: Install Rust
+      uses: hecrj/setup-rust-action@v1.4.0
+      with:
+        rust-version: stable
+
+    - name: Install Clippy
+      run: rustup component add clippy
+      shell: bash
+
+    - name: Python Version
+      run: python --version
+
+    - name: Upgrade LLVM
+      run: choco upgrade llvm
+
+    - name: 'Install Rust target x86_64-pc-windows-msvc'
+      shell: bash
+      run: rustup target add x86_64-pc-windows-msvc
+
+    - name: 'Build Skia with all features'
+      shell: bash
+      run: |
+        cargo clean
+        cargo build -p skia-safe --release --features "gl,textlayout,webp,svg,vulkan,d3d" --target x86_64-pc-windows-msvc
+
+    - name: 'Copy Skia headers'
+      shell: bash
+      run: |
+        mkdir -p "${{ env.BUILD_ARTIFACTSTAGINGDIRECTORY }}/include"
+        cp -r path/to/skia/include/* "${{ env.BUILD_ARTIFACTSTAGINGDIRECTORY }}/include/" 
+        # ^-- Replace 'path/to/skia/include' with the actual path
+
+    - name: 'Package the release'
+      run: |
+        7z a -tzip skia-windows-static.zip "${{ env.BUILD_ARTIFACTSTAGINGDIRECTORY }}/skia-binaries" "${{ env.BUILD_ARTIFACTSTAGINGDIRECTORY }}/include"
+
+    - name: 'Upload artifact'
+      uses: actions/upload-artifact@v3
+      with:
+        name: skia-windows-static  
+        path: skia-windows-static.zip
+
+    - name: Setup tmate session
+      if: failure() || true
+      uses: mxschmitt/action-tmate@v3
+      with:
+        limit-access-to-actor: true # Only you can access the session
