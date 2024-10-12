@@ -83,13 +83,12 @@ jobs:
           "${ARTIFACT_NAME}" \
           | tee artifacts/skia-binaries/gha-autobuild.json
 
-        jq --raw-output 'to_entries as $stuff | keys_unsorted as $keys |
-          $keys | sort |
-          "Key | Value\n---|---\n" +
-          reduce $stuff[] as $item ("";
-            . + $item.key + "|" + $item.value + "\n"
-          )
-        ' artifacts/skia-binaries/gha-autobuild.json | grep -E '^(rust-skia|skia|artifact|built)[|]' | tee -a $GITHUB_STEP_SUMMARY
+        (
+          echo "name | value"
+          echo "--- | ---"
+          jq --raw-output 'to_entries[] | .key + "|" + .value' \
+            artifacts/skia-binaries/gha-autobuild.json | grep -E '^(rust-skia|skia|artifact|built)[|]'
+        ) | tee -a $GITHUB_STEP_SUMMARY
 
     - name: 'Upload artifact'
       uses: actions/upload-artifact@v4
