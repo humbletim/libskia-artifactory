@@ -57,6 +57,7 @@ jobs:
       run: |
         echo ARTIFACT_NAME=`cat artifacts/skia-binaries/key.txt | sed -e "s@^[^-]\+-@${SKIA_VERSION}-@"` | tee -a $GITHUB_ENV
         mv -iv skia-bindings/skia/include artifacts/skia-binaries/
+        tar -C skia-bindings/skia -cf - `cd skia-bindings/skia && ls modules/*/{src,include}/*.h` | tar -C artifacts/skia-binaries -xvf -
         find artifacts/skia-binaries -name BUILD.bazel -exec rm -v {} \;
         rm -v artifacts/skia-binaries/skia-bindings.lib artifacts/skia-binaries/*.rs
 
