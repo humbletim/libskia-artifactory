@@ -1,6 +1,9 @@
 name: windows-skia-static
 
 on:
+  push:
+    branches:
+      - main 
   workflow_dispatch:
       inputs:
         skia-version:
@@ -18,7 +21,7 @@ jobs:
       BUILD_ARTIFACTSTAGINGDIRECTORY: artifacts
 
     steps:
-    - name: actions/checkout@v3
+    - uses: actions/checkout@v3
       with:
         repository: rust-skia/rust-skia 
         ref: ${{ inputs.skia-version }} 
