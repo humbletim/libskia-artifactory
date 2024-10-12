@@ -18,7 +18,7 @@ jobs:
     runs-on: windows-2022
     env:
       SKIA_DEBUG: 0
-      BUILD_ARTIFACTSTAGINGDIRECTORY: artifacts
+      BUILD_ARTIFACTSTAGINGDIRECTORY: ${{ github.workspace }}/artifacts
 
     steps:
     - uses: actions/checkout@v3
@@ -39,8 +39,8 @@ jobs:
     - name: Python Version
       run: python --version
 
-    - name: Upgrade LLVM
-      run: choco upgrade llvm
+    # - name: Upgrade LLVM
+    #   run: choco upgrade llvm
 
     - name: 'Install Rust target x86_64-pc-windows-msvc'
       shell: bash
@@ -50,25 +50,23 @@ jobs:
       shell: bash
       run: |
         cargo clean
-        cargo build -p skia-safe --release --features "gl,textlayout,webp,svg,vulkan,d3d" --target x86_64-pc-windows-msvc
+        cargo build -p skia-bindings --release --features "gl,textlayout,webp,svg,vulkan,d3d" --target x86_64-pc-windows-msvc
 
-    - name: 'Copy Skia headers'
+    - name: 'Relocate Skia headers'
       shell: bash
       run: |
-        mkdir -p "${{ env.BUILD_ARTIFACTSTAGINGDIRECTORY }}/include"
-        cp -r path/to/skia/include/* "${{ env.BUILD_ARTIFACTSTAGINGDIRECTORY }}/include/" 
-        # ^-- Replace 'path/to/skia/include' with the actual path
+        mv -iv skia-bindings/skia/include ${{ env.BUILD_ARTIFACTSTAGINGDIRECTORY }}/skia-binaries/
 
     - name: 'Package the release'
+      shell: bash
       run: |
-        7z a -tzip skia-windows-static.zip "${{ env.BUILD_ARTIFACTSTAGINGDIRECTORY }}/skia-binaries" "${{ env.BUILD_ARTIFACTSTAGINGDIRECTORY }}/include"
+        echo "ARTIFACT_NAME=`cat ${BUILD_ARTIFACTSTAGINGDIRECTORY}/skia-binaries/key.txt`" | tee -a $GITHUB_ENV
 
     - name: 'Upload artifact'
       uses: actions/upload-artifact@v3
       with:
-        name: skia-windows-static  
-        path: skia-windows-static.zip
-
+        name: ${{ env.ARTIFACT_NAME }}  
+        path: ${{ env.BUILD_ARTIFACTSTAGINGDIRECTORY }}/skia-binaries
     - name: Setup tmate session
       if: failure() || true
       uses: mxschmitt/action-tmate@v3
