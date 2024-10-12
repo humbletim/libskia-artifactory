@@ -64,7 +64,7 @@ jobs:
       shell: bash
       run: |
         printf '{
-          "workflow": "https://github.com/%s",
+          "workflow": "%s",
           "inputs.skia-version": "%s",
           "rust-skia": "%s",
           "key": "%s",
@@ -89,7 +89,7 @@ jobs:
           reduce $stuff[] as $item ("";
             . + $item.key + "|" + $item.value + "\n"
           )
-        ' artifacts/skia-binaries/gha-autobuild.json | tee -a $GITHUB_STEP_SUMMARY
+        ' artifacts/skia-binaries/gha-autobuild.json | grep -E '^(rust-skia|skia|artifact|built)[|]' | tee -a $GITHUB_STEP_SUMMARY
 
     - name: 'Upload artifact'
       uses: actions/upload-artifact@v4
@@ -98,7 +98,7 @@ jobs:
         path: ${{ env.BUILD_ARTIFACTSTAGINGDIRECTORY }}/skia-binaries
 
     - name: Setup tmate session
-      if: failure() || true
+      if: failure()
       uses: mxschmitt/action-tmate@v3
       with:
         limit-access-to-actor: true # Only you can access the session
