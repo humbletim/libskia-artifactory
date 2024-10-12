@@ -9,7 +9,7 @@ on:
         skia-version:
           type: string
           default: 0.78.2
-          required: false
+          required: true
 
 run-name: ${{ github.ref_name }} | ${{ inputs.skia-version }}
 
@@ -18,23 +18,20 @@ jobs:
     runs-on: windows-2022
     env:
       SKIA_DEBUG: 0
+      SKIA_TAG: ${{ inputs.skia-version }} 
       BUILD_ARTIFACTSTAGINGDIRECTORY: ${{ github.workspace }}/artifacts
 
     steps:
     - uses: actions/checkout@v3
       with:
         repository: rust-skia/rust-skia 
-        ref: ${{ inputs.skia-version }} 
+        ref: ${{ env.SKIA_TAG }} 
         submodules: true 
 
     - name: Install Rust
-      uses: hecrj/setup-rust-action@v1.4.0
+      uses: hecrj/setup-rust-action@v2.0.1
       with:
         rust-version: stable
-
-    - name: Install Clippy
-      run: rustup component add clippy
-      shell: bash
 
     - name: Python Version
       run: python --version
@@ -52,24 +49,33 @@ jobs:
         cargo clean
         cargo build -p skia-bindings --release --features "gl,textlayout,webp,svg,vulkan,d3d" --target x86_64-pc-windows-msvc
 
-    - name: 'Relocate Skia headers'
-      shell: bash
-      run: |
-        mv -iv skia-bindings/skia/include artifacts/skia-binaries/skia
-
     - name: 'Package the release'
       shell: bash
       run: |
         echo "ARTIFACT_NAME=`cat artifacts/skia-binaries/key.txt`" | tee -a $GITHUB_ENV
-        find artifacts/skia-binaries -name \*.rs -o -name BUILD.bazel -exec rm -v {} \;
+        mv -iv skia-bindings/skia/include artifacts/skia-binaries/skia
+        find artifacts/skia-binaries -name BUILD.bazel -exec rm -v {} \;
+        rm -v artifacts/skia-binaries/skia-bindings.lib artifacts/skia-binaries/*.rs
+        printf '{
+          "repo": "%s#skia-version=%s",
+          "key": "%s",
+          "tag": "%s",
+          "built": "%s"
+        }' \
+          "${GITHUB_REPOSITORY#$GITHUB_REPOSITORY_OWNER/}" "${SKIA_TAG}" \
+          "`cat artifacts/skia-binaries/key.txt`" \
+          "`cat artifacts/skia-binaries/tag.txt`" \
+          "`date --rfc-3339=ns --utc`" \
+          | tee artifacts/skia-binaries/gha-autobuild.json
 
     - name: 'Upload artifact'
       uses: actions/upload-artifact@v4
       with:
         name: libskia-${{ env.ARTIFACT_NAME }}  
         path: ${{ env.BUILD_ARTIFACTSTAGINGDIRECTORY }}/skia-binaries
+
     - name: Setup tmate session
-      if: failure() || true
+      if: failure()
       uses: mxschmitt/action-tmate@v3
       with:
         limit-access-to-actor: true # Only you can access the session
