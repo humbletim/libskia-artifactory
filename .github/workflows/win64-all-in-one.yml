@@ -1,10 +1,14 @@
 name: windows-skia-static
 
 on:
+  push:
+    branches:
+      - main 
   workflow_dispatch:
       inputs:
         skia-version:
           type: string
+          default: 0.78.2
           required: false
 
 run-name: ${{ github.ref_name }} | ${{ inputs.skia-version }}
@@ -17,9 +21,10 @@ jobs:
       BUILD_ARTIFACTSTAGINGDIRECTORY: artifacts
 
     steps:
-    - uses: actions/checkout@v3
+    - name: actions/checkout@v3
       with:
-        repository: rust-skia/skia-safe 
+        repository: rust-skia/rust-skia 
+        ref: ${{ inputs.skia-version }} 
         submodules: true 
 
     - name: Install Rust
