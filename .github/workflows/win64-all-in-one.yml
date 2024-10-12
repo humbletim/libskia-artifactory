@@ -1,9 +1,6 @@
 name: windows-skia-static
 
 on:
-  push:
-    branches:
-      - main 
   workflow_dispatch:
       inputs:
         skia-version:
