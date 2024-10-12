@@ -6,7 +6,7 @@ on:
       - main 
   workflow_dispatch:
       inputs:
-        skia-version:
+        rust-skia-version:
           type: string
           default: 0.78.2
           required: true
@@ -18,14 +18,13 @@ jobs:
     runs-on: windows-2022
     env:
       SKIA_DEBUG: 0
-      SKIA_TAG: ${{ inputs.skia-version }} 
       BUILD_ARTIFACTSTAGINGDIRECTORY: ${{ github.workspace }}/artifacts
 
     steps:
     - uses: actions/checkout@v4
       with:
         repository: rust-skia/rust-skia 
-        ref: ${{ env.SKIA_TAG }} 
+        ref: ${{ inputs.rust-skia-version }} 
         submodules: true 
 
     - name: Install Rust
@@ -46,26 +45,42 @@ jobs:
     - name: 'Build Skia with all features'
       shell: bash
       run: |
+        (
+          echo RUST_SKIA_VERSION=$(grep 'skia =' skia-bindings/Cargo.toml | cut -d '"' -f 2 | cut -d '-' -f 2)
+          echo SKIA_VERSION=$(grep 'skia =' skia-bindings/Cargo.toml | cut -d '"' -f 2 | cut -d '-' -f 1)
+        ) | tee -a $GITHUB_ENV
         cargo clean
         cargo build -p skia-bindings --release --features "gl,textlayout,webp,svg,vulkan,d3d" --target x86_64-pc-windows-msvc
 
     - name: 'Package the release'
       shell: bash
       run: |
-        echo "ARTIFACT_NAME=`cat artifacts/skia-binaries/key.txt`" | tee -a $GITHUB_ENV
-        mv -iv skia-bindings/skia/include artifacts/skia-binaries/skia
+        echo ARTIFACT_NAME=`cat artifacts/skia-binaries/key.txt | sed -e "s@^[^-]\+-@${SKIA_VERSION}-@"` | tee -a $GITHUB_ENV
+        mv -iv skia-bindings/skia/include artifacts/skia-binaries/
         find artifacts/skia-binaries -name BUILD.bazel -exec rm -v {} \;
         rm -v artifacts/skia-binaries/skia-bindings.lib artifacts/skia-binaries/*.rs
+
+    - name: 'Generate gha-autobuild.json'
+      shell: bash
+      run: |
         printf '{
-          "repo": "%s#skia-version=%s",
+          "workflow": "https://github.com/%s",
+          "inputs.skia-version": "%s",
+          "rust-skia": "%s",
           "key": "%s",
           "tag": "%s",
-          "built": "%s"
+          "skia": "%s",
+          "built": "%s",
+          "artifact": "%s"
         }' \
-          "${GITHUB_REPOSITORY#$GITHUB_REPOSITORY_OWNER/}" "${SKIA_TAG}" \
+          "${GITHUB_WORKFLOW_REF}" \
+          "${{ inputs.rust-skia-version }}" \
+          "${RUST_SKIA_VERSION}" \
           "`cat artifacts/skia-binaries/key.txt`" \
           "`cat artifacts/skia-binaries/tag.txt`" \
+          "${SKIA_VERSION}" \
           "`date --rfc-3339=ns --utc`" \
+          "${ARTIFACT_NAME}" \
           | tee artifacts/skia-binaries/gha-autobuild.json
 
     - name: 'Upload artifact'
